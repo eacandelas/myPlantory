@@ -245,8 +245,8 @@ int lecturaHumedad(){
 void enviarRequest(EthernetClient client, struct valores *lecturas){
   // if there's a successful connection:
   // char serverAddress[] = "www.arduino.cc";  
-  char serverAddress[] = {192, 168, 1, 100};  
-  int serverPort =8081;
+  IPAddress serverAddress(192.168.1.100);  
+  int serverPort = 8081;
 
   if (client.connect(serverAddress, serverPort)) {
     Serial.println("connecting...");
@@ -258,7 +258,7 @@ void enviarRequest(EthernetClient client, struct valores *lecturas){
     client.print(lecturas->valorTemperatura);
     client.print("&h=");
     client.print(lecturas->valorHumedad);
-    client.println("HTTP/1.1");
+    client.println(" HTTP/1.1");
     client.println("Host: www.arduino.cc");
     client.println("User-Agent: arduino-ethernet");
     client.println("Connection: close");
