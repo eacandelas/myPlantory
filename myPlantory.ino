@@ -32,7 +32,7 @@ struct sensor{
 
 struct valores{
     int valorLuminosidad;
-    int valorTemperatura;
+    float valorTemperatura;
     int valorHumedad;
 } lecturas;
 
