@@ -301,7 +301,11 @@ void processSubmit(EthernetClient cl){
     cl.println("<input type=\"submit\" name=\"regar\"value=\"on\">");
     cl.println("<form/>");
 
-    if (HTTP_req.indexOf("regar=on") > -1){
+    int indexReq = HTTP_req.indexOf("regar=on");
+    Serial.print("indexReq: ");
+    Serial.print(indexReq);
+
+    if (indexReq > -1){
         // Serial.println("DEBE REGAR");
         ejecutarRiego();
     }
