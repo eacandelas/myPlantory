@@ -123,17 +123,17 @@ void setup()
 void loop()
 {   
 
-    // if(timer(timer_post,tiempo_post)){
+    if(timer(timer_post,tiempo_post)){
 
-    //    lecturas.valorLuminosidad = lecturaLuminosidad();
-    //    lecturas.valorTemperatura = lecturaTemperatura();
-    //    lecturas.valorHumedad = lecturaHumedad();
+       lecturas.valorLuminosidad = lecturaLuminosidad();
+       lecturas.valorTemperatura = lecturaTemperatura();
+       lecturas.valorHumedad = lecturaHumedad();
 
-    //     EthernetClient clientRequest;
-    //     enviarRequest(clientRequest, &lecturas);
-    //     clientRequest.stop();
-    //     timer_post = millis();
-    // }
+        EthernetClient clientRequest;
+        enviarRequest(clientRequest, &lecturas);
+        clientRequest.stop();
+        timer_post = millis();
+    }
 
     EthernetClient clientServer = server.available();
     if (clientServer){
@@ -244,16 +244,27 @@ int lecturaHumedad(){
 
 void enviarRequest(EthernetClient client, struct valores *lecturas){
   // if there's a successful connection:
-  char serverAddress[] = "www.arduino.cc";  
+  // char serverAddress[] = "www.arduino.cc";  
+  char serverAddress[] = {192, 168, 1, 100};  
+  int serverPort =8081;
 
-  if (client.connect(serverAddress, 80)) {
+  if (client.connect(serverAddress, serverPort)) {
     Serial.println("connecting...");
     // send the HTTP PUT request:
-    client.println("GET /latest.txt HTTP/1.1");
+    // client.println("GET /?l=lecturasLuminosidad&t=lecturaTemperatura&h=lecturaTemperatura HTTP/1.1");
+    client.print("GET /valores?l=" );
+    client.print(lecturas->valorLuminosidad);
+    client.print("&t=");
+    client.print(lecturas->valorTemperatura);
+    client.print("&h=");
+    client.print(lecturas->valorHumedad);
+    client.println("HTTP/1.1");
     client.println("Host: www.arduino.cc");
     client.println("User-Agent: arduino-ethernet");
     client.println("Connection: close");
     client.println();
+
+    Serial.println("Data sent");
 
     // note the time that the connection was made:
     //lastConnectionTime = millis();
