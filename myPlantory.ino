@@ -10,6 +10,7 @@
 
 #define TEMPERATURA_Pin 2
 #define DISPARO 1000
+#define DISPARO_LUZ 50
 #define SENSOR_HUMEDAD_PIN 0 
 
 enum estados{INACTIVO, ACTIVO};
@@ -30,6 +31,12 @@ struct sensor{
     int valorAnterior;
 };
 
+struct lampara{
+    int id;
+    int pin;
+    enum estados status;
+};
+
 struct valores{
     int valorLuminosidad;
     float valorTemperatura;
@@ -38,6 +45,7 @@ struct valores{
 
 struct valvula valvula;
 struct sensor sensor;
+struct lampara lampara;
 
 OneWire ourWire(TEMPERATURA_Pin);
 DallasTemperature tempSensors(&ourWire); 
@@ -80,12 +88,18 @@ void setup()
     sensor.valorActual = -1;
     sensor.valorAnterior = -1;
 
+    lampara.id = 0;
+    lampara.pin = 9;
+    lampara.status = INACTIVO;
+
     lecturas.valorHumedad = -1;
     lecturas.valorTemperatura = -1;
     lecturas.valorLuminosidad = -1;
 
     pinMode(valvula.pin, OUTPUT);
-    digitalWrite(valvula.pin, LOW);
+    digitalWrite(valvula.pin, HIGH);
+    pinMode(lampara.pin, OUTPUT);
+    digitalWrite(lampara.pin, HIGH);
     Serial.begin(9600);
     Serial.println("<<INIT>>");
 
@@ -166,6 +180,23 @@ int lecturaLuminosidad(){
     }
 
     return event.light;
+}
+
+void ejecutarLampara(){
+    int luminosidad = lecturaLuminosidad();
+    Serial.print("VALOR LUX: ");
+    Serial.print(luminosidad);
+
+    if (luminosidad < DISPARO_LUZ){
+        digitalWrite(lampara.pin, LOW);
+        Serial.println("LAMPARA ENCENDIDA");
+    }else if (luminosidad > DISPARO_LUZ){
+        digitalWrite(lampara.pin, HIGH);
+        Serial.println("NO SE NECESITA ENCENDER LAMPARA");
+    }else{
+        digitalWrite(lampara.pin, HIGH);
+        Serial.println("APAGADA");
+    }
 }
 
 float lecturaTemperatura(){
@@ -301,11 +332,26 @@ void processSubmit(EthernetClient cl){
     cl.println("<input type=\"submit\" name=\"regar\"value=\"on\">");
     cl.println("<form/>");
 
-    int indexReq = HTTP_req.indexOf("regar=on");
-    Serial.print("indexReq: ");
-    Serial.print(indexReq);
+    cl.println("<form action=\"action_page.php\" method=\"GET\">");
+    cl.println("<input type=\"submit\" name=\"lampara\"value=\"on\">");
+    cl.println("<form/>");
 
-    if (indexReq > -1){
+    int indexLampara = HTTP_req.indexOf("lampara=on");
+    Serial.print("indexLampara: ");
+    Serial.println(indexLampara);
+
+    if (indexLampara > -1 && indexLampara < 50){
+        // Serial.println("DEBE REGAR");
+        ejecutarLampara();
+    }
+
+
+    int indexRegar = HTTP_req.indexOf("regar=on");
+    Serial.print("indexRegar: ");
+    Serial.println(indexRegar);
+
+
+    if (indexRegar > -1 && indexRegar < 50){
         // Serial.println("DEBE REGAR");
         ejecutarRiego();
     }
