@@ -64,6 +64,8 @@ IPAddress ip(192, 168, 1, 4);
 
 EthernetServer server(80);
 
+String HTTP_req;
+
 void setup()
 {
     valvula.id = 0;
@@ -84,7 +86,7 @@ void setup()
     pinMode(valvula.pin, OUTPUT);
     digitalWrite(valvula.pin, LOW);
     Serial.begin(9600);
-    Serial.prinln("<<INIT>>");
+    Serial.println("<<INIT>>");
 
     configureEthernet();
 
@@ -124,7 +126,7 @@ void loop()
         lecturas.valorLuminosidad = lecturaLuminosidad();
         lecturas.valorTemperatura = lecturaTemperatura();
         lecturas.valorHumedad = lecturaHumedad();
-        procesarCliente(clientServer);
+        procesarCliente(clientServer, &lecturas);
     }
 
 }
@@ -160,19 +162,16 @@ int lecturaLuminosidad(){
     }else{
         Serial.println("Sensor overload");
     }
-    delay(250);
 
     return event.light;
 }
 
-int lecturaTemperatura(){
+float lecturaTemperatura(){
     sensors.requestTemperatures(); 
-    int temp= sensors.getTempCByIndex(0);
+    float temp= sensors.getTempCByIndex(0);
+    Serial.print("VALOR TEMPERATURA> ");
     Serial.print(temp); 
     Serial.println(" grados Centigrados");
-    Serial.print(sensors.getTempFByIndex(0)); 
-    Serial.println(" grados Fahrenheit"); 
-    delay(1000); 
     return temp;
 }
 
@@ -212,7 +211,7 @@ void ejecutarRiego(){
 
 int lecturaHumedad(){
     sensor.valorActual = analogRead(SENSOR_HUMEDAD_PIN);
-    Serial.print("VALOR>");
+    Serial.print("VALOR HUMEDAD> ");
     Serial.println(sensor.valorActual);
     delay(1000);
     return sensor.valorActual;
@@ -252,6 +251,9 @@ void procesarCliente(EthernetClient client, struct valores *lecturas){
       if (client.available()) {
         char c = client.read();
         Serial.write(c);
+
+        HTTP_req += c;
+
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
         // so you can send a reply
@@ -278,6 +280,10 @@ void procesarCliente(EthernetClient client, struct valores *lecturas){
             client.print(lecturas->valorHumedad);
             client.println("<br />");
             client.println("</html>");
+
+            processSubmit(client);
+
+            HTTP_req = "";
             break;
         }
         if (c == '\n') {
@@ -294,6 +300,17 @@ void procesarCliente(EthernetClient client, struct valores *lecturas){
     // close the connection:
     client.stop();
     Serial.println("client disconnected");
+}
+
+void processSubmit(EthernetClient cl){
+
+    cl.println("<form action=\"action_page.php\" method=\"GET\">");
+    cl.println("<input type=\"submit\" name=\"regar\"value=\"on\">");
+    cl.println("<form/>");
+
+    if (HTTP_req.indexOf("regar=on") > -1){
+        Serial.println("DEBE REGAR");
+    }
 }
 
 void configureEthernet(){
