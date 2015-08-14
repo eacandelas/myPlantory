@@ -5,6 +5,10 @@
 #include <SPI.h>
 #include <Ethernet.h>
 
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define TEMPERATURA_Pin 2
 #define DISPARO 1000
 #define SENSOR_HUMEDAD_PIN 0 
 
@@ -26,8 +30,17 @@ struct sensor{
     int valorAnterior;
 };
 
+struct valores{
+    int valorLuminosidad;
+    int valorTemperatura;
+    int valorHumedad;
+} lecturas;
+
 struct valvula valvula;
 struct sensor sensor;
+
+OneWire ourWire(TEMPERATURA_Pin);
+DallasTemperature sensors(&ourWire); 
 
 Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
 //tiempos lecturas Temperatura (segundos);
@@ -64,9 +77,16 @@ void setup()
     sensor.valorActual = -1;
     sensor.valorAnterior = -1;
 
+    lecturas.valorHumedad = -1;
+    lecturas.valorTemperatura = -1;
+    lecturas.valorLuminosidad = -1;
+
     pinMode(valvula.pin, OUTPUT);
     digitalWrite(valvula.pin, LOW);
     Serial.begin(9600);
+    Serial.prinln("<<INIT>>");
+
+    configureEthernet();
 
     if(!tsl.begin())
         {
@@ -85,18 +105,15 @@ void setup()
 
 void loop()
 {   
-    if(timer(timer_riego, tiempo_riego)){
-        ejecutarRiego();
-        timer_riego = millis();
-    }
-    if(timer(timer_tsl, tiempo_tsl)){
-        lecturaLuminosidad();
-        timer_tsl = millis();
-    }
 
     if(timer(timer_post,tiempo_post)){
+
+       lecturas.valorLuminosidad = lecturaLuminosidad();
+       lecturas.valorTemperatura = lecturaTemperatura();
+       lecturas.valorHumedad = lecturaHumedad();
+
         EthernetClient clientRequest;
-        enviarRequest(clientRequest);
+        enviarRequest(clientRequest, &lecturas);
         clientRequest.stop();
         timer_post = millis();
     }
@@ -130,7 +147,7 @@ void configureLuxSensor(void){
         
 }
 
-void lecturaLuminosidad(){
+int lecturaLuminosidad(){
     sensors_event_t event;
     tsl.getEvent(&event);
 
@@ -140,6 +157,19 @@ void lecturaLuminosidad(){
         Serial.println("Sensor overload");
     }
     delay(250);
+
+    return event.light;
+}
+
+int lecturaTemperatura(){
+    sensors.requestTemperatures(); 
+    int temp= sensors.getTempCByIndex(0);
+    Serial.print(temp); 
+    Serial.println(" grados Centigrados");
+    Serial.print(sensors.getTempFByIndex(0)); 
+    Serial.println(" grados Fahrenheit"); 
+    delay(1000); 
+    return temp;
 }
 
 void ejecutarRiego(){
@@ -176,7 +206,15 @@ void ejecutarRiego(){
     }  
 }
 
-void enviarRequest(EthernetClient client){
+void lecturaHumedad(){
+    sensor.valorActual = analogRead(SENSOR_HUMEDAD_PIN);
+    Serial.print("VALOR>");
+    Serial.println(sensor.valorActual);
+    delay(1000);
+
+}
+
+void enviarRequest(EthernetClient client, struct valores *lecturas){
   // if there's a successful connection:
   char serverAddress[] = "www.arduino.cc";  
 
@@ -200,7 +238,7 @@ void enviarRequest(EthernetClient client){
   }
 }
 
-void procesarCliente(EthernetClient client){
+void procesarCliente(EthernetClient client, struct valores *lecturas){
     Serial.print("ETHERNET>");
     Serial.println("new client");
     // an http request ends with a blank line
@@ -214,28 +252,28 @@ void procesarCliente(EthernetClient client){
         // so you can send a reply
         if (c == '\n' && currentLineIsBlank) {
           // send a standard http response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: text/html");
-          client.println("Connection: close");  // the connection will be closed after completion of the response
-          //client.println("Refresh: 5");  // refresh the page automatically every 5 sec
-          client.println();
-          client.println("<!DOCTYPE HTML>");
-          client.println("<html>");
-          // output the value of each analog input pin
-          int sensorReading = analogRead(0);
-            client.print("analog input ");
-            client.print(0);
-            client.print(" is ");
-            client.print(sensorReading);
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-Type: text/html");
+            client.println("Connection: close");  // the connection will be closed after completion of the response
+            //client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+            client.println();
+            client.println("<!DOCTYPE HTML>");
+            client.println("<html>");
+            
+            // Temperatura
+            client.print("Temperatura : ");
+            client.print(lecturas->valorTemperatura);
+            client.println("<br />");  
+            //Luminosidad          
+            client.print("Luminosidad :");
+            client.print(lecturas->valorLuminosidad);
+            client.println("<br />"); 
+            //Humedad           
+            client.print("Humedad : ");
+            client.print(lecturas->valorHumedad);
             client.println("<br />");
-          int blue = map(sensorReading,0,1024,0,255);
-          char buffer[4]; buffer[0] = '\0';
-          sprintf(buffer,"%02x",blue);
-          client.print("<div id=\"rectangle\" style=\"width:200px; height:200px; background-color:#0000");
-          client.print(buffer);
-          client.print("\"></div>");
-          client.println("</html>");
-          break;
+            client.println("</html>");
+            break;
         }
         if (c == '\n') {
           // you're starting a new line
