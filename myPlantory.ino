@@ -40,9 +40,10 @@ struct valvula valvula;
 struct sensor sensor;
 
 OneWire ourWire(TEMPERATURA_Pin);
-DallasTemperature sensors(&ourWire); 
+DallasTemperature tempSensors(&ourWire); 
 
-Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
+Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_LOW, 1);
+
 //tiempos lecturas Temperatura (segundos);
 unsigned long timer_tsl;
 unsigned long tiempo_tsl = 10;
@@ -108,17 +109,17 @@ void setup()
 void loop()
 {   
 
-    if(timer(timer_post,tiempo_post)){
+    // if(timer(timer_post,tiempo_post)){
 
-       lecturas.valorLuminosidad = lecturaLuminosidad();
-       lecturas.valorTemperatura = lecturaTemperatura();
-       lecturas.valorHumedad = lecturaHumedad();
+    //    lecturas.valorLuminosidad = lecturaLuminosidad();
+    //    lecturas.valorTemperatura = lecturaTemperatura();
+    //    lecturas.valorHumedad = lecturaHumedad();
 
-        EthernetClient clientRequest;
-        enviarRequest(clientRequest, &lecturas);
-        clientRequest.stop();
-        timer_post = millis();
-    }
+    //     EthernetClient clientRequest;
+    //     enviarRequest(clientRequest, &lecturas);
+    //     clientRequest.stop();
+    //     timer_post = millis();
+    // }
 
     EthernetClient clientServer = server.available();
     if (clientServer){
@@ -153,6 +154,7 @@ void configureLuxSensor(void){
         
 }
 
+
 int lecturaLuminosidad(){
     sensors_event_t event;
     tsl.getEvent(&event);
@@ -167,8 +169,8 @@ int lecturaLuminosidad(){
 }
 
 float lecturaTemperatura(){
-    sensors.requestTemperatures(); 
-    float temp= sensors.getTempCByIndex(0);
+    tempSensors.requestTemperatures(); 
+    float temp= tempSensors.getTempCByIndex(0);
     Serial.print("VALOR TEMPERATURA> ");
     Serial.print(temp); 
     Serial.println(" grados Centigrados");
@@ -181,17 +183,9 @@ void ejecutarRiego(){
     Serial.println(sensor.valorActual);
     delay(1000);
 
-    if(sensor.valorActual < DISPARO && sensor.valorAnterior > DISPARO){
-        sensor.status = HUMEDO;
-        digitalWrite(valvula.pin, HIGH);
-        Serial.print("STATUS>");
-        Serial.println("HUMEDO");
-        sensor.valorAnterior = sensor.valorActual;
-    }else if(sensor.valorActual > DISPARO && sensor.valorAnterior < DISPARO){
+    if(sensor.valorActual > DISPARO){
         sensor.status = SECO;
         digitalWrite(valvula.pin, LOW);
-        Serial.print("STATUS>");
-        Serial.println("SECO");
         valvula.timer = millis();
         while(!timer(valvula.timer, valvula.tiempo)){
         //continue
@@ -202,9 +196,8 @@ void ejecutarRiego(){
         digitalWrite(valvula.pin, HIGH);
         Serial.println("STATUS>");
         Serial.println("DEJE DE REGAR");
-        sensor.valorAnterior = sensor.valorActual;
     }else {
-        Serial.print(" STATUS>");
+        Serial.print("STATUS>");
         Serial.println("NADA A EJECUTAR");
     }  
 }
@@ -309,7 +302,8 @@ void processSubmit(EthernetClient cl){
     cl.println("<form/>");
 
     if (HTTP_req.indexOf("regar=on") > -1){
-        Serial.println("DEBE REGAR");
+        // Serial.println("DEBE REGAR");
+        ejecutarRiego();
     }
 }
 
