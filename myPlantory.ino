@@ -120,6 +120,10 @@ void loop()
 
     EthernetClient clientServer = server.available();
     if (clientServer){
+        
+        lecturas.valorLuminosidad = lecturaLuminosidad();
+        lecturas.valorTemperatura = lecturaTemperatura();
+        lecturas.valorHumedad = lecturaHumedad();
         procesarCliente(clientServer);
     }
 
