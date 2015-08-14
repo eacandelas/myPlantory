@@ -120,7 +120,7 @@ void loop()
 
     EthernetClient clientServer = server.available();
     if (clientServer){
-        
+
         lecturas.valorLuminosidad = lecturaLuminosidad();
         lecturas.valorTemperatura = lecturaTemperatura();
         lecturas.valorHumedad = lecturaHumedad();
@@ -210,11 +210,12 @@ void ejecutarRiego(){
     }  
 }
 
-void lecturaHumedad(){
+int lecturaHumedad(){
     sensor.valorActual = analogRead(SENSOR_HUMEDAD_PIN);
     Serial.print("VALOR>");
     Serial.println(sensor.valorActual);
     delay(1000);
+    return sensor.valorActual;
 
 }
 
