@@ -46,7 +46,7 @@ DISPARO_LUZ es el valor limite que debe de obtener el sensor para su funcionamie
 
     int luminosidad = lecturaLuminosidad();
     Serial.print("VALOR LUX: ");
-    Serial.print(luminosidad);
+    Serial.println(luminosidad);
 
     if (luminosidad < DISPARO_LUZ){
         digitalWrite(lampara.pin, LOW);
@@ -58,6 +58,15 @@ DISPARO_LUZ es el valor limite que debe de obtener el sensor para su funcionamie
         digitalWrite(lampara.pin, HIGH);
         Serial.println("APAGADA");
     }
+}
+
+void ejecutarLamparaOff(){
+/*
+Apagamos lampara al momento, no se realiza validacion
+*/
+
+    digitalWrite(lampara.pin, HIGH);
+    Serial.println("LAMPARA APAGADA");
 }
 
 float lecturaTemperatura(){

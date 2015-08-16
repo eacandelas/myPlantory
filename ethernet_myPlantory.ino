@@ -134,12 +134,19 @@ void processSubmit(EthernetClient cl){
 */
 
 
+    
+    cl.println("Regar: ")
     cl.println("<form action=\"action_page.php\" method=\"GET\">");
     cl.println("<input type=\"submit\" name=\"regar\"value=\"on\">");
     cl.println("<form/>");
+    cl.println("<br/>");
 
+    cl.println("Lampara: ")
     cl.println("<form action=\"action_page.php\" method=\"GET\">");
     cl.println("<input type=\"submit\" name=\"lampara\"value=\"on\">");
+    cl.println("<form/>");
+    cl.println("<form action=\"action_page.php\" method=\"GET\">");
+    cl.println("<input type=\"submit\" name=\"lampara\"value=\"off\">");
     cl.println("<form/>");
 
     int indexLampara = HTTP_req.indexOf("lampara=on");
@@ -149,6 +156,15 @@ void processSubmit(EthernetClient cl){
     if (indexLampara > -1 && indexLampara < 50){
         // Serial.println("DEBE REGAR");
         ejecutarLampara();
+    }
+
+    int indexLamparaOff = HTTP_req.indexOf("lampara=off");
+    Serial.print("indexLamparaOff: ");
+    Serial.println(indexLamparaOff);
+
+    if (indexLamparaOff > -1 && indexLamparaOff < 50){
+        // Serial.println("DEBE REGAR");
+        ejecutarLamparaOff();
     }
 
 

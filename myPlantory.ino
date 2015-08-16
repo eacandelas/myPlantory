@@ -26,8 +26,8 @@ depende de etherne_myPlantory.ino
 #include <DallasTemperature.h>
 
 #define TEMPERATURA_Pin 2
-#define DISPARO 1000
-#define DISPARO_LUZ 50
+#define DISPARO 1000            //HUMEDAD
+#define DISPARO_LUZ 50          //LUZ
 #define SENSOR_HUMEDAD_PIN 0 
 #define BOMBA_PIN 12
 
