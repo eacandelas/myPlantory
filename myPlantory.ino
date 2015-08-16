@@ -1,9 +1,33 @@
+/*
+myPlantory.ino
+
+author: Eden Candelas
+@elmundoverdees
+HackerSpace Monterrey
+
+Gardening system basado en arduino.
+Controla via web valvula para riego.
+Realiza mediciones de luminositad, temperatura y humedad.
+
+depende de etherne_myPlantory.ino
+
+
+*/
+
+
 #include "Arduino.h"
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_TSL2561_U.h>
+#include <SPI.h>
+#include <Ethernet.h>
 
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define TEMPERATURA_Pin 2
 #define DISPARO 1000
+#define DISPARO_LUZ 50
 #define SENSOR_HUMEDAD_PIN 0 
 
 enum estados{INACTIVO, ACTIVO};
@@ -24,32 +48,80 @@ struct sensor{
     int valorAnterior;
 };
 
+struct lampara{
+    int id;
+    int pin;
+    enum estados status;
+};
+
+struct valores{
+    int valorLuminosidad;
+    float valorTemperatura;
+    int valorHumedad;
+} lecturas;
+
 struct valvula valvula;
 struct sensor sensor;
+struct lampara lampara;
 
-Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
-unsigned long timer_tsl;
-unsigned long tiempo_tsl = 10;
+/*Sensor Temperatura*/
 
-unsigned long timer_riego;
-unsigned long tiempo_riego = 10;
+OneWire ourWire(TEMPERATURA_Pin);
+DallasTemperature tempSensors(&ourWire); 
+
+/*Sensor iluminacion*/
+
+Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_LOW, 1);
+
+/*ETHERNET*/
+
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+IPAddress ip(192, 168, 1, 4);
+String HTTP_req;
+
+EthernetServer server(80);
+
+
+//tiempos envio de informacion (segundos)
+unsigned long timer_post;
+unsigned long tiempo_post = 60;
 
 void setup()
 {
+//Inicializacion de la valvula 
+
     valvula.id = 0;
     valvula.pin = 8;
     valvula.status = INACTIVO;
     valvula.timer = 0;
     valvula.tiempo = 10;
 
+    pinMode(valvula.pin, OUTPUT);
+    digitalWrite(valvula.pin, HIGH);
+
+//Inicializacion de sensor de humedad
     sensor.id = 0;
     sensor.status = SECO;
     sensor.valorActual = -1;
     sensor.valorAnterior = -1;
 
-    pinMode(valvula.pin, OUTPUT);
-    digitalWrite(valvula.pin, LOW);
+//Inicializacion de lampara
+    lampara.id = 0;
+    lampara.pin = 9;
+    lampara.status = INACTIVO;
+
+    pinMode(lampara.pin, OUTPUT);
+    digitalWrite(lampara.pin, HIGH);
+
+//Inicializacion de estructura de lecturas
+    lecturas.valorHumedad = -1;
+    lecturas.valorTemperatura = -1;
+    lecturas.valorLuminosidad = -1;
+
     Serial.begin(9600);
+    Serial.println("<<INIT>>");
+
+    configureEthernet();
 
     if(!tsl.begin())
         {
@@ -60,20 +132,35 @@ void setup()
     configureLuxSensor();
   
     Serial.println("");
-    timer_tsl = millis();
-    timer_riego = millis();
+    timer_post = millis();
 
 }
 
 void loop()
 {   
-    if(timer(timer_riego, tiempo_riego)){
-        ejecutarRiego();
-        timer_riego = millis();
+
+// Envia el post con los datos del sensor cada periodo definido por tiempo_post
+    if(timer(timer_post,tiempo_post)){
+
+       lecturas.valorLuminosidad = lecturaLuminosidad();
+       lecturas.valorTemperatura = lecturaTemperatura();
+       lecturas.valorHumedad = lecturaHumedad();
+
+        EthernetClient clientRequest;
+        enviarRequest(clientRequest, &lecturas);
+        clientRequest.stop();
+        timer_post = millis();
     }
-    if(timer(timer_tsl, tiempo_tsl)){
-        lecturaLuminosidad();
-        timer_tsl = millis();
+
+//Si hay una conexion externa (alguien llamando desde un browser o una app)
+//Se responde ejecutando procesarCliente()
+    EthernetClient clientServer = server.available();
+    if (clientServer){
+
+        lecturas.valorLuminosidad = lecturaLuminosidad();
+        lecturas.valorTemperatura = lecturaTemperatura();
+        lecturas.valorHumedad = lecturaHumedad();
+        procesarCliente(clientServer, &lecturas);
     }
 
 }
@@ -90,59 +177,4 @@ int timer(unsigned long inicio,  unsigned long limite){
     return 0;
 }
 
-void configureLuxSensor(void){
-        tsl.setGain(TSL2561_GAIN_1X);
-        tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);
-        Serial.println("-------------------------------------");
-        Serial.print  ("Gain:       "); Serial.println("Auto");
-        Serial.print  ("Timing:     "); Serial.println("13 ms");
-        Serial.println("-------------------------------------");
-        
-}
-
-void lecturaLuminosidad(){
-    sensors_event_t event;
-    tsl.getEvent(&event);
-
-    if (event.light){
-        Serial.print(event.light); Serial.println(" lux");
-    }else{
-        Serial.println("Sensor overload");
-    }
-    delay(250);
-}
-
-void ejecutarRiego(){
-    sensor.valorActual = analogRead(SENSOR_HUMEDAD_PIN);
-    Serial.print("VALOR>");
-    Serial.println(sensor.valorActual);
-    delay(1000);
-
-    if(sensor.valorActual < DISPARO && sensor.valorAnterior > DISPARO){
-        sensor.status = HUMEDO;
-        digitalWrite(valvula.pin, HIGH);
-        Serial.print("STATUS>");
-        Serial.println("HUMEDO");
-        sensor.valorAnterior = sensor.valorActual;
-    }else if(sensor.valorActual > DISPARO && sensor.valorAnterior < DISPARO){
-        sensor.status = SECO;
-        digitalWrite(valvula.pin, LOW);
-        Serial.print("STATUS>");
-        Serial.println("SECO");
-        valvula.timer = millis();
-        while(!timer(valvula.timer, valvula.tiempo)){
-        //continue
-            delay(1000);
-            Serial.println("STATUS>");
-            Serial.println("REGANDO");
-        }
-        digitalWrite(valvula.pin, HIGH);
-        Serial.println("STATUS>");
-        Serial.println("DEJE DE REGAR");
-        sensor.valorAnterior = sensor.valorActual;
-    }else {
-        Serial.print(" STATUS>");
-        Serial.println("NADA A EJECUTAR");
-    }  
-}
 
