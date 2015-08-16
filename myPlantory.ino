@@ -100,6 +100,11 @@ void setup()
     pinMode(valvula.pin, OUTPUT);
     digitalWrite(valvula.pin, HIGH);
 
+//Inicializacion bomba
+
+    pinMode(BOMBA_PIN, OUTPUT);
+    digitalWrite(BOMBA_PIN, HIGH);
+
 //Inicializacion de sensor de humedad
     sensor.id = 0;
     sensor.status = SECO;
@@ -113,6 +118,8 @@ void setup()
 
     pinMode(lampara.pin, OUTPUT);
     digitalWrite(lampara.pin, HIGH);
+
+
 
 //Inicializacion de estructura de lecturas
     lecturas.valorHumedad = -1;
