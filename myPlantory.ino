@@ -29,6 +29,7 @@ depende de etherne_myPlantory.ino
 #define DISPARO 1000
 #define DISPARO_LUZ 50
 #define SENSOR_HUMEDAD_PIN 0 
+#define BOMBA_PIN 12
 
 enum estados{INACTIVO, ACTIVO};
 enum estadosSensor {SECO, HUMEDO};

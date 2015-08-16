@@ -85,6 +85,7 @@ Si el valor de humedad es menor al disparo, no se activa nada
     if(sensor.valorActual > DISPARO){
         sensor.status = SECO;
         digitalWrite(valvula.pin, LOW);
+        digitalWrite(BOMBA_PIN, LOW);
         valvula.timer = millis();
         while(!timer(valvula.timer, valvula.tiempo)){
         //continue
@@ -93,6 +94,7 @@ Si el valor de humedad es menor al disparo, no se activa nada
             Serial.println("REGANDO");
         }
         digitalWrite(valvula.pin, HIGH);
+        digitalWrite(BOMBA_PIN, HIGH);
         Serial.println("STATUS>");
         Serial.println("DEJE DE REGAR");
     }else {
