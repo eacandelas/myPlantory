@@ -88,29 +88,36 @@ unsigned long tiempo_post = 60;
 
 void setup()
 {
+//Inicializacion de la valvula 
+
     valvula.id = 0;
     valvula.pin = 8;
     valvula.status = INACTIVO;
     valvula.timer = 0;
     valvula.tiempo = 10;
 
+    pinMode(valvula.pin, OUTPUT);
+    digitalWrite(valvula.pin, HIGH);
+
+//Inicializacion de sensor de humedad
     sensor.id = 0;
     sensor.status = SECO;
     sensor.valorActual = -1;
     sensor.valorAnterior = -1;
 
+//Inicializacion de lampara
     lampara.id = 0;
     lampara.pin = 9;
     lampara.status = INACTIVO;
 
+    pinMode(lampara.pin, OUTPUT);
+    digitalWrite(lampara.pin, HIGH);
+
+//Inicializacion de estructura de lecturas
     lecturas.valorHumedad = -1;
     lecturas.valorTemperatura = -1;
     lecturas.valorLuminosidad = -1;
 
-    pinMode(valvula.pin, OUTPUT);
-    digitalWrite(valvula.pin, HIGH);
-    pinMode(lampara.pin, OUTPUT);
-    digitalWrite(lampara.pin, HIGH);
     Serial.begin(9600);
     Serial.println("<<INIT>>");
 
@@ -131,7 +138,7 @@ void setup()
 
 void loop()
 {   
-
+// Envia el post con los datos del sensor cada periodo definido por tiempo_post
     if(timer(timer_post,tiempo_post)){
 
        lecturas.valorLuminosidad = lecturaLuminosidad();
@@ -144,6 +151,8 @@ void loop()
         timer_post = millis();
     }
 
+//Si hay una conexion externa (alguien llamando desde un browser o una app)
+//Se responde ejecutando procesarCliente()
     EthernetClient clientServer = server.available();
     if (clientServer){
 

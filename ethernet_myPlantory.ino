@@ -13,8 +13,14 @@ las funciones.
 */
 
 void enviarRequest(EthernetClient client, struct valores *lecturas){
-  // if there's a successful connection:
-  // char serverAddress[] = "www.arduino.cc";  
+/*
+Esta funcion es la que periodicamente esta enviando los valores de los sensores al servidor
+el request enviado esta en la forma : "GET /valores?l=1024&t=100.00&h=1024 HTTP/1.1"
+
+Los valores dentro de serverAddress identifican la ip a la que se estaran enviando los datos.
+
+*/
+
   IPAddress serverAddress(192,168,1,100);  
   int serverPort = 8081;
 
@@ -36,11 +42,8 @@ void enviarRequest(EthernetClient client, struct valores *lecturas){
 
     Serial.println("Data sent");
 
-    // note the time that the connection was made:
-    //lastConnectionTime = millis();
   } 
   else {
-    // if you couldn't make a connection:
     Serial.println("connection failed");
     Serial.println("disconnecting.");
     client.stop();
@@ -48,6 +51,20 @@ void enviarRequest(EthernetClient client, struct valores *lecturas){
 }
 
 void procesarCliente(EthernetClient client, struct valores *lecturas){
+/*
+Esta funcion es llamada cuando ocurre una conexion hacia el arduino, la estructura lecturas
+es tiene para manejar en un solo objeto las tres lecturas que necesitamos
+
+Esta funcion despliega el html basico con el que el arduino responde.
+
+Una seccion con los valores de las lecturas y llama a procesarSubmit()
+que es la funcion que se encarga de crear el html de los botones y ejecutar
+riego o lampara si los botones fueron presionados.
+
+Desconecta la sesion al finalizar.
+
+*/
+
     Serial.print("ETHERNET>");
     Serial.println("new client");
     // an http request ends with a blank line
@@ -108,6 +125,14 @@ void procesarCliente(EthernetClient client, struct valores *lecturas){
 }
 
 void processSubmit(EthernetClient cl){
+/*
+    se crean dos botones que hacen que el navegador envie un GET de vuelta al arduino
+    con los valores "regar=on" o "lampara=on".
+    Si se encuentra que la peticion que entra tiene alguno de estos valores
+    esta presente llama a su respectiva funcion ejecutarLampara o ejecutarRiego (el codigo
+    de estas funciones esta en sensores_myPlantory.ino)
+*/
+
 
     cl.println("<form action=\"action_page.php\" method=\"GET\">");
     cl.println("<input type=\"submit\" name=\"regar\"value=\"on\">");
@@ -139,7 +164,9 @@ void processSubmit(EthernetClient cl){
 }
 
 void configureEthernet(){
-// start the Ethernet connection and the server:
+/* Inicializamos el modulo ethernet con una ip statica, se puede remover ip para que se
+se realize dhcp
+*/  
   Ethernet.begin(mac, ip);
   server.begin();
   Serial.print("ETHERNET> server is at");

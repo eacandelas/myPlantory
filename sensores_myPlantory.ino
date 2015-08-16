@@ -5,6 +5,8 @@
 */
 
 void configureLuxSensor(void){
+//Asigna los valor iniciales al sensor de luminosidad para que regrese valores correctos
+
         tsl.setGain(TSL2561_GAIN_1X);
         tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);
         Serial.println("-------------------------------------");
@@ -16,6 +18,9 @@ void configureLuxSensor(void){
 
 
 int lecturaLuminosidad(){
+/*
+Esta funcion regresa el valor de luminosidad en base al objeto tsl
+*/    
     sensors_event_t event;
     tsl.getEvent(&event);
 
@@ -29,6 +34,16 @@ int lecturaLuminosidad(){
 }
 
 void ejecutarLampara(){
+/*
+Revisa si el valor de luminosidad es menor al disparo de la luz.
+En caso de que asi sea activa el pin de la lampara (se activa en LOW)
+En caso que el valor del a misma sea alto evita que la lampara se encienda
+
+DISPARO_LUZ es el valor limite que debe de obtener el sensor para su funcionamiento
+
+*/
+
+
     int luminosidad = lecturaLuminosidad();
     Serial.print("VALOR LUX: ");
     Serial.print(luminosidad);
@@ -46,6 +61,7 @@ void ejecutarLampara(){
 }
 
 float lecturaTemperatura(){
+//Regresa el valor de temperatura en grados centigrados.
     tempSensors.requestTemperatures(); 
     float temp= tempSensors.getTempCByIndex(0);
     Serial.print("VALOR TEMPERATURA> ");
@@ -55,6 +71,12 @@ float lecturaTemperatura(){
 }
 
 void ejecutarRiego(){
+/*
+Se toma el valor de humedad y si esta por arriba del valor de DISPARO activa la valvula
+por el tiempo definido en valvula.tiempo, cuando ese tiempo ha transcurrido, la valvula 
+se cierra.
+Si el valor de humedad es menor al disparo, no se activa nada
+*/
     sensor.valorActual = analogRead(SENSOR_HUMEDAD_PIN);
     Serial.print("VALOR>");
     Serial.println(sensor.valorActual);
@@ -80,7 +102,10 @@ void ejecutarRiego(){
 }
 
 int lecturaHumedad(){
+//toma el valor de humedad    
+
     sensor.valorActual = analogRead(SENSOR_HUMEDAD_PIN);
+
     Serial.print("VALOR HUMEDAD> ");
     Serial.println(sensor.valorActual);
     delay(1000);
