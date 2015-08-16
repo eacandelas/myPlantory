@@ -1,3 +1,20 @@
+/*
+myPlantory.ino
+
+author: Eden Candelas
+@elmundoverdees
+HackerSpace Monterrey
+
+Gardening system basado en arduino.
+Controla via web valvula para riego.
+Realiza mediciones de luminositad, temperatura y humedad.
+
+depende de etherne_myPlantory.ino
+
+
+*/
+
+
 #include "Arduino.h"
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -47,33 +64,27 @@ struct valvula valvula;
 struct sensor sensor;
 struct lampara lampara;
 
+/*Sensor Temperatura*/
+
 OneWire ourWire(TEMPERATURA_Pin);
 DallasTemperature tempSensors(&ourWire); 
 
+/*Sensor iluminacion*/
+
 Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(TSL2561_ADDR_LOW, 1);
 
-//tiempos lecturas Temperatura (segundos);
-unsigned long timer_tsl;
-unsigned long tiempo_tsl = 10;
+/*ETHERNET*/
 
-//tiempos ejecucion RIEGO (segundos)
-unsigned long timer_riego;
-unsigned long tiempo_riego = 10;
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+IPAddress ip(192, 168, 1, 4);
+String HTTP_req;
+
+EthernetServer server(80);
+
 
 //tiempos envio de informacion (segundos)
 unsigned long timer_post;
 unsigned long tiempo_post = 60;
-
-/*ETHERNET*/
-
-byte mac[] = {
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
-};
-IPAddress ip(192, 168, 1, 4);
-
-EthernetServer server(80);
-
-String HTTP_req;
 
 void setup()
 {
@@ -114,8 +125,6 @@ void setup()
     configureLuxSensor();
   
     Serial.println("");
-    timer_tsl = millis();
-    timer_riego = millis();
     timer_post = millis();
 
 }
@@ -158,222 +167,4 @@ int timer(unsigned long inicio,  unsigned long limite){
     return 0;
 }
 
-void configureLuxSensor(void){
-        tsl.setGain(TSL2561_GAIN_1X);
-        tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);
-        Serial.println("-------------------------------------");
-        Serial.print  ("Gain:       "); Serial.println("Auto");
-        Serial.print  ("Timing:     "); Serial.println("13 ms");
-        Serial.println("-------------------------------------");
-        
-}
 
-
-int lecturaLuminosidad(){
-    sensors_event_t event;
-    tsl.getEvent(&event);
-
-    if (event.light){
-        Serial.print(event.light); Serial.println(" lux");
-    }else{
-        Serial.println("Sensor overload");
-    }
-
-    return event.light;
-}
-
-void ejecutarLampara(){
-    int luminosidad = lecturaLuminosidad();
-    Serial.print("VALOR LUX: ");
-    Serial.print(luminosidad);
-
-    if (luminosidad < DISPARO_LUZ){
-        digitalWrite(lampara.pin, LOW);
-        Serial.println("LAMPARA ENCENDIDA");
-    }else if (luminosidad > DISPARO_LUZ){
-        digitalWrite(lampara.pin, HIGH);
-        Serial.println("NO SE NECESITA ENCENDER LAMPARA");
-    }else{
-        digitalWrite(lampara.pin, HIGH);
-        Serial.println("APAGADA");
-    }
-}
-
-float lecturaTemperatura(){
-    tempSensors.requestTemperatures(); 
-    float temp= tempSensors.getTempCByIndex(0);
-    Serial.print("VALOR TEMPERATURA> ");
-    Serial.print(temp); 
-    Serial.println(" grados Centigrados");
-    return temp;
-}
-
-void ejecutarRiego(){
-    sensor.valorActual = analogRead(SENSOR_HUMEDAD_PIN);
-    Serial.print("VALOR>");
-    Serial.println(sensor.valorActual);
-    delay(1000);
-
-    if(sensor.valorActual > DISPARO){
-        sensor.status = SECO;
-        digitalWrite(valvula.pin, LOW);
-        valvula.timer = millis();
-        while(!timer(valvula.timer, valvula.tiempo)){
-        //continue
-            delay(1000);
-            Serial.println("STATUS>");
-            Serial.println("REGANDO");
-        }
-        digitalWrite(valvula.pin, HIGH);
-        Serial.println("STATUS>");
-        Serial.println("DEJE DE REGAR");
-    }else {
-        Serial.print("STATUS>");
-        Serial.println("NADA A EJECUTAR");
-    }  
-}
-
-int lecturaHumedad(){
-    sensor.valorActual = analogRead(SENSOR_HUMEDAD_PIN);
-    Serial.print("VALOR HUMEDAD> ");
-    Serial.println(sensor.valorActual);
-    delay(1000);
-    return sensor.valorActual;
-
-}
-
-void enviarRequest(EthernetClient client, struct valores *lecturas){
-  // if there's a successful connection:
-  // char serverAddress[] = "www.arduino.cc";  
-  IPAddress serverAddress(192.168.1.100);  
-  int serverPort = 8081;
-
-  if (client.connect(serverAddress, serverPort)) {
-    Serial.println("connecting...");
-    // send the HTTP PUT request:
-    // client.println("GET /?l=lecturasLuminosidad&t=lecturaTemperatura&h=lecturaTemperatura HTTP/1.1");
-    client.print("GET /valores?l=" );
-    client.print(lecturas->valorLuminosidad);
-    client.print("&t=");
-    client.print(lecturas->valorTemperatura);
-    client.print("&h=");
-    client.print(lecturas->valorHumedad);
-    client.println(" HTTP/1.1");
-    client.println("Host: www.arduino.cc");
-    client.println("User-Agent: arduino-ethernet");
-    client.println("Connection: close");
-    client.println();
-
-    Serial.println("Data sent");
-
-    // note the time that the connection was made:
-    //lastConnectionTime = millis();
-  } 
-  else {
-    // if you couldn't make a connection:
-    Serial.println("connection failed");
-    Serial.println("disconnecting.");
-    client.stop();
-  }
-}
-
-void procesarCliente(EthernetClient client, struct valores *lecturas){
-    Serial.print("ETHERNET>");
-    Serial.println("new client");
-    // an http request ends with a blank line
-    boolean currentLineIsBlank = true;
-    while (client.connected()) {
-      if (client.available()) {
-        char c = client.read();
-        Serial.write(c);
-
-        HTTP_req += c;
-
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
-          // send a standard http response header
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-Type: text/html");
-            client.println("Connection: close");  // the connection will be closed after completion of the response
-            //client.println("Refresh: 5");  // refresh the page automatically every 5 sec
-            client.println();
-            client.println("<!DOCTYPE HTML>");
-            client.println("<html>");
-            
-            // Temperatura
-            client.print("Temperatura : ");
-            client.print(lecturas->valorTemperatura);
-            client.println("<br />");  
-            //Luminosidad          
-            client.print("Luminosidad :");
-            client.print(lecturas->valorLuminosidad);
-            client.println("<br />"); 
-            //Humedad           
-            client.print("Humedad : ");
-            client.print(lecturas->valorHumedad);
-            client.println("<br />");
-            client.println("</html>");
-
-            processSubmit(client);
-
-            HTTP_req = "";
-            break;
-        }
-        if (c == '\n') {
-          // you're starting a new line
-          currentLineIsBlank = true;
-        } else if (c != '\r') {
-          // you've gotten a character on the current line
-          currentLineIsBlank = false;
-        }
-      }
-    }
-    // give the web browser time to receive the data
-    delay(1);
-    // close the connection:
-    client.stop();
-    Serial.println("client disconnected");
-}
-
-void processSubmit(EthernetClient cl){
-
-    cl.println("<form action=\"action_page.php\" method=\"GET\">");
-    cl.println("<input type=\"submit\" name=\"regar\"value=\"on\">");
-    cl.println("<form/>");
-
-    cl.println("<form action=\"action_page.php\" method=\"GET\">");
-    cl.println("<input type=\"submit\" name=\"lampara\"value=\"on\">");
-    cl.println("<form/>");
-
-    int indexLampara = HTTP_req.indexOf("lampara=on");
-    Serial.print("indexLampara: ");
-    Serial.println(indexLampara);
-
-    if (indexLampara > -1 && indexLampara < 50){
-        // Serial.println("DEBE REGAR");
-        ejecutarLampara();
-    }
-
-
-    int indexRegar = HTTP_req.indexOf("regar=on");
-    Serial.print("indexRegar: ");
-    Serial.println(indexRegar);
-
-
-    if (indexRegar > -1 && indexRegar < 50){
-        // Serial.println("DEBE REGAR");
-        ejecutarRiego();
-    }
-}
-
-void configureEthernet(){
-// start the Ethernet connection and the server:
-  Ethernet.begin(mac, ip);
-  server.begin();
-  Serial.print("ETHERNET> server is at");
-  Serial.println(Ethernet.localIP());
-
-
-}
